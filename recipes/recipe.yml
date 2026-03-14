@@ -1,45 +1,56 @@
----
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-# image will be published to ghcr.io/<user>/<name>
 name: LOS-X
-# description will be included in the image's metadata
-description: This is my personal OS image.
+description: >
+  LOS-X: Custom bootable Fedora Silverblue-based OSTree image.
+  Includes GNOME desktop environment, core utilities (vim, git, micro),
+  Starship shell prompt, and selected system-wide Flatpaks.
+  Fully signed and optimized for atomic upgrades with rpm-ostree.
 
-# the base image to build on top of (FROM) and the version tag to use
-base-image: ghcr.io/ublue-os/silverblue-main
-image-version: 42 # latest is also supported if you want new updates ASAP
+# Use the official bootable Silverblue base for GNOME
+base-image: ghcr.io/ublue-os/silverblue
+image-version: latest
 
-# module configuration, executed in order
-# you can include multiple instances of the same module
 modules:
+  # Optional files to copy into the system
   - type: files
     files:
       - source: system
-        destination: / # copies files/system/* (* means everything inside it) into your image's root folder /
+        destination: /
 
+  # Install core system packages via rpm-ostree
   - type: dnf
     repos:
       copr:
         - atim/starship
     install:
       packages:
+        - gnome-shell
+        - gnome-terminal
+        - nautilus
+        - gnome-tweaks
+        - vim
+        - git
         - micro
         - starship
+        - firefox
+
+  # Remove any unneeded packages (optional)
     remove:
       packages:
-        # example: removing firefox (in favor of the flatpak)
-        # "firefox" is the main package, "firefox-langpacks" is a dependency
-        - firefox
-        - firefox-langpacks # also remove firefox dependency (not required for all packages, this is a special case)
+        - firefox-langpacks # optional, if you prefer the Flatpak version
 
+  # Install Flatpaks for all users and optionally per-user
   - type: default-flatpaks
     configurations:
-      - notify: true # Send notification after install/uninstall is finished (true/false)
+      - notify: true
         scope: system
-        # If no repo information is specified, Flathub will be used by default
-        install: # system flatpaks we want all users to have and not remove
+        install:
           - org.mozilla.firefox
           - org.gnome.Loupe
-      - scope: user # Also add Flathub user repo, but no user packages
+          - org.gnome.Builder
+          - org.gnome.gedit
+          - org.gnome.Calculator
+      - scope: user # user-level Flatpaks if desired
 
-  - type: signing # this sets up the proper policy & signing files for signed images to work fully
+  # Signing module for signed images
+  - type: signing
